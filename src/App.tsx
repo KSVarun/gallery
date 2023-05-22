@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import './App.css';
+
+let num = 1;
+let timeout = 0;
+const defaultTimeGap = 5;
 
 function later(delay: number) {
   return new Promise(function (resolve) {
-    setTimeout(() => resolve(delay), delay * 1000);
+    timeout = setTimeout(() => resolve(delay), delay * 1000);
   });
 }
+
 function App() {
   const [state, setState] = useState<{
     files: null | FileList;
@@ -14,9 +19,12 @@ function App() {
     files: null,
     fileSrc: '',
   });
-  let num = 1;
 
-  function callAgain(i: number) {
+  const callAgain = useCallback((i: number) => {
+    let nextTimeGap = i;
+    if (nextTimeGap === 0) {
+      nextTimeGap = defaultTimeGap;
+    }
     later(i).then(() => {
       setState((state) => {
         if (!state.files || !state.files[num]) {
@@ -29,9 +37,22 @@ function App() {
         };
       });
       num = num + 1;
-      callAgain(i);
+      callAgain(nextTimeGap);
     });
-  }
+  }, []);
+
+  useLayoutEffect(() => {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === ' ' && timeout !== 0) {
+        clearTimeout(timeout);
+        timeout = 0;
+        return;
+      }
+      if (e.key === ' ' && timeout === 0) {
+        callAgain(0);
+      }
+    });
+  }, [callAgain]);
 
   return (
     <div>
@@ -49,7 +70,7 @@ function App() {
                 fileSrc: URL.createObjectURL(e.target.files[0]),
               };
             });
-            callAgain(8);
+            callAgain(defaultTimeGap);
           }}
           id='file-path'
           name='file-path'
@@ -59,7 +80,7 @@ function App() {
       {state.fileSrc && (
         <img
           src={state.fileSrc}
-          style={{ height: '100vh', width: '100vw', objectFit: 'cover' }}
+          style={{ height: '100vh', width: '100vw', objectFit: 'contain' }}
         />
       )}
     </div>
